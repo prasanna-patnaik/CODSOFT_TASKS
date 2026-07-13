@@ -5,7 +5,6 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.serializers import (
     AuthResponseSerializer,
@@ -17,14 +16,7 @@ from accounts.serializers import (
     TokenRefreshResponseSerializer,
     UserSerializer,
 )
-
-
-def build_token_pair(user):
-    refresh = RefreshToken.for_user(user)
-    return {
-        "refresh": str(refresh),
-        "access": str(refresh.access_token),
-    }
+from accounts.utils import auth_response
 
 
 class RegistrationView(GenericAPIView):
@@ -58,14 +50,7 @@ class RegistrationView(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(
-            {
-                "message": "User registered successfully.",
-                "user": UserSerializer(user).data,
-                "tokens": build_token_pair(user),
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        return auth_response("User registered successfully.", user, status.HTTP_201_CREATED)
 
 
 class LoginView(GenericAPIView):
@@ -92,14 +77,7 @@ class LoginView(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
-        return Response(
-            {
-                "message": "Login successful.",
-                "user": UserSerializer(user).data,
-                "tokens": build_token_pair(user),
-            },
-            status=status.HTTP_200_OK,
-        )
+        return auth_response("Login successful.", user, status.HTTP_200_OK)
 
 
 class RefreshTokenView(GenericAPIView):
@@ -140,7 +118,9 @@ class CurrentUserView(GenericAPIView):
         summary="Get the authenticated user",
         responses={
             200: UserSerializer,
-            401: OpenApiResponse(description="Authentication credentials were not provided or are invalid"),
+            401: OpenApiResponse(
+                description="Authentication credentials were not provided or are invalid"
+            ),
         },
     )
     def get(self, request, *args, **kwargs):
@@ -158,7 +138,9 @@ class LogoutView(GenericAPIView):
         responses={
             200: MessageResponseSerializer,
             400: OpenApiResponse(description="Refresh token is invalid or already blacklisted"),
-            401: OpenApiResponse(description="Authentication credentials were not provided or are invalid"),
+            401: OpenApiResponse(
+                description="Authentication credentials were not provided or are invalid"
+            ),
         },
         examples=[
             OpenApiExample(

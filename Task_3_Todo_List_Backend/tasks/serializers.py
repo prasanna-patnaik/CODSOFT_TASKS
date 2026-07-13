@@ -1,7 +1,7 @@
-from django.utils import timezone
 from rest_framework import serializers
 
 from tasks.models import Task
+from tasks.validators import validate_due_date_not_past, validate_not_blank
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -24,14 +24,17 @@ class TaskSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at", "updated_at", "owner")
 
     def validate_title(self, value):
-        if not value or not value.strip():
-            raise serializers.ValidationError("Task title cannot be empty.")
-        return value.strip()
+        return validate_not_blank(
+            value,
+            "Task title cannot be empty.",
+            exception_class=serializers.ValidationError,
+        )
 
     def validate_category(self, value):
         return value.strip() if value else value
 
     def validate_due_date(self, value):
-        if value and value < timezone.now():
-            raise serializers.ValidationError("Due date cannot be in the past.")
-        return value
+        return validate_due_date_not_past(
+            value,
+            exception_class=serializers.ValidationError,
+        )

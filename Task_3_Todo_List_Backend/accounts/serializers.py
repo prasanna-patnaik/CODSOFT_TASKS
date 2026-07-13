@@ -1,8 +1,13 @@
 from django.contrib.auth import authenticate, get_user_model
-from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from accounts.validators import (
+    normalize_unique_email,
+    validate_password_confirmation,
+    validate_user_password,
+)
 
 
 User = get_user_model()
@@ -16,12 +21,27 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8, style={"input_type": "password"})
-    password_confirm = serializers.CharField(write_only=True, style={"input_type": "password"})
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        style={"input_type": "password"},
+    )
+    password_confirm = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+    )
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "first_name", "last_name", "password", "password_confirm")
+        fields = (
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "password",
+            "password_confirm",
+        )
         read_only_fields = ("id",)
         extra_kwargs = {
             "email": {"required": True, "allow_blank": False},
@@ -30,25 +50,20 @@ class RegistrationSerializer(serializers.ModelSerializer):
         }
 
     def validate_email(self, value):
-        normalized_email = User.objects.normalize_email(value)
-        if User.objects.filter(email__iexact=normalized_email).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        return normalized_email
+        return normalize_unique_email(value)
 
     def validate(self, attrs):
         password = attrs.get("password")
         password_confirm = attrs.pop("password_confirm", None)
 
-        if password != password_confirm:
-            raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
-
+        validate_password_confirmation(password, password_confirm)
         user = User(
             username=attrs.get("username"),
             email=attrs.get("email"),
             first_name=attrs.get("first_name", ""),
             last_name=attrs.get("last_name", ""),
         )
-        validate_password(password, user=user)
+        validate_user_password(password, user=user)
         return attrs
 
     def create(self, validated_data):
@@ -69,10 +84,16 @@ class LoginSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         request = self.context.get("request")
-        user = authenticate(request=request, username=attrs.get("username"), password=attrs.get("password"))
+        user = authenticate(
+            request=request,
+            username=attrs.get("username"),
+            password=attrs.get("password"),
+        )
 
         if not user:
-            raise serializers.ValidationError({"detail": "Unable to log in with the provided credentials."})
+            raise serializers.ValidationError(
+                {"detail": "Unable to log in with the provided credentials."}
+            )
 
         if not user.is_active:
             raise serializers.ValidationError({"detail": "This user account is disabled."})
@@ -89,7 +110,9 @@ class LogoutSerializer(serializers.Serializer):
             token = RefreshToken(value)
             token.blacklist()
         except Exception as exc:
-            raise serializers.ValidationError("Refresh token is invalid or already blacklisted.") from exc
+            raise serializers.ValidationError(
+                "Refresh token is invalid or already blacklisted."
+            ) from exc
         return value
 
 
