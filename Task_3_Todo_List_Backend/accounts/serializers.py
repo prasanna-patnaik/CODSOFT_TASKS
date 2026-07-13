@@ -107,13 +107,16 @@ class LogoutSerializer(serializers.Serializer):
 
     def validate_refresh(self, value):
         try:
-            token = RefreshToken(value)
-            token.blacklist()
+            self.token = RefreshToken(value)
         except Exception as exc:
             raise serializers.ValidationError(
                 "Refresh token is invalid or already blacklisted."
             ) from exc
         return value
+
+    def save(self, **kwargs):
+        self.token.blacklist()
+        return {}
 
 
 class TokenPairSerializer(serializers.Serializer):

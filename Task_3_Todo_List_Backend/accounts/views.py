@@ -153,4 +153,5 @@ class LogoutView(GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response({"detail": "Logged out successfully."}, status=status.HTTP_200_OK)
