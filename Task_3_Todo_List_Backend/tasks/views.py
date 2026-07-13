@@ -1,7 +1,9 @@
-from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
-from rest_framework import status, viewsets
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
+from rest_framework import filters, viewsets
 from rest_framework.permissions import IsAuthenticated
 
+from tasks.filters import TaskFilter
 from tasks.models import Task
 from tasks.permissions import IsTaskOwner
 from tasks.serializers import TaskSerializer
@@ -11,7 +13,52 @@ from tasks.serializers import TaskSerializer
     list=extend_schema(
         tags=["Tasks"],
         summary="List tasks",
-        description="Return all tasks owned by the authenticated user.",
+        description=(
+            "Return paginated tasks owned by the authenticated user. Supports filtering by "
+            "completed, priority, and category; searching title and description; and ordering "
+            "by created_at, updated_at, due_date, or priority."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="completed",
+                description="Filter by completed status. Use true or false.",
+                required=False,
+                type=bool,
+            ),
+            OpenApiParameter(
+                name="priority",
+                description="Filter by priority. Allowed values: low, medium, high.",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="category",
+                description="Filter by category using a case-insensitive exact match.",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="search",
+                description="Search within task title and description.",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="ordering",
+                description=(
+                    "Order by created_at, updated_at, due_date, or priority. Prefix with '-' "
+                    "for descending order, for example -created_at."
+                ),
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="page",
+                description="Page number for paginated results. The page size is 10.",
+                required=False,
+                type=int,
+            ),
+        ],
         responses={200: TaskSerializer(many=True)},
     ),
     create=extend_schema(
@@ -78,6 +125,11 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated, IsTaskOwner]
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = TaskFilter
+    search_fields = ["title", "description"]
+    ordering_fields = ["created_at", "updated_at", "due_date", "priority"]
+    ordering = ["completed", "due_date", "-created_at"]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False) or not self.request.user.is_authenticated:
