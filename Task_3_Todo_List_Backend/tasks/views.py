@@ -14,7 +14,8 @@ from tasks.serializers import TaskSerializer
         tags=["Tasks"],
         summary="List tasks",
         description=(
-            "Return paginated tasks owned by the authenticated user. Supports filtering by "
+            "Requires a valid Bearer access token. Returns only tasks owned by the "
+            "authenticated user. Supports filtering by "
             "completed, priority, and category; searching title and description; and ordering "
             "by created_at, updated_at, due_date, or priority."
         ),
@@ -59,12 +60,18 @@ from tasks.serializers import TaskSerializer
                 type=int,
             ),
         ],
-        responses={200: TaskSerializer(many=True)},
+        responses={
+            200: TaskSerializer(many=True),
+            401: OpenApiResponse(description="Authentication credentials were not provided or are invalid"),
+        },
     ),
     create=extend_schema(
         tags=["Tasks"],
         summary="Create a task",
-        description="Create a new task owned by the authenticated user.",
+        description=(
+            "Requires a valid Bearer access token. Creates a new task and assigns ownership "
+            "to the authenticated user. The owner field cannot be supplied by the client."
+        ),
         request=TaskSerializer,
         responses={
             201: TaskSerializer,
@@ -75,49 +82,57 @@ from tasks.serializers import TaskSerializer
     retrieve=extend_schema(
         tags=["Tasks"],
         summary="Retrieve a task",
-        description="Return one task owned by the authenticated user.",
+        description=(
+            "Requires a valid Bearer access token. Returns a task only when it belongs to "
+            "the authenticated user."
+        ),
         responses={
             200: TaskSerializer,
             401: OpenApiResponse(description="Authentication credentials were not provided or are invalid"),
-            403: OpenApiResponse(description="Task belongs to another user"),
-            404: OpenApiResponse(description="Task was not found"),
+            404: OpenApiResponse(description="Task was not found or does not belong to the authenticated user"),
         },
     ),
     update=extend_schema(
         tags=["Tasks"],
         summary="Update a task",
-        description="Replace all editable fields on a task owned by the authenticated user.",
+        description=(
+            "Requires a valid Bearer access token. Replaces all editable fields only when "
+            "the task belongs to the authenticated user."
+        ),
         request=TaskSerializer,
         responses={
             200: TaskSerializer,
             400: OpenApiResponse(description="Validation error"),
             401: OpenApiResponse(description="Authentication credentials were not provided or are invalid"),
-            403: OpenApiResponse(description="Task belongs to another user"),
-            404: OpenApiResponse(description="Task was not found"),
+            404: OpenApiResponse(description="Task was not found or does not belong to the authenticated user"),
         },
     ),
     partial_update=extend_schema(
         tags=["Tasks"],
         summary="Partially update a task",
-        description="Update selected editable fields on a task owned by the authenticated user.",
+        description=(
+            "Requires a valid Bearer access token. Updates selected editable fields only "
+            "when the task belongs to the authenticated user."
+        ),
         request=TaskSerializer,
         responses={
             200: TaskSerializer,
             400: OpenApiResponse(description="Validation error"),
             401: OpenApiResponse(description="Authentication credentials were not provided or are invalid"),
-            403: OpenApiResponse(description="Task belongs to another user"),
-            404: OpenApiResponse(description="Task was not found"),
+            404: OpenApiResponse(description="Task was not found or does not belong to the authenticated user"),
         },
     ),
     destroy=extend_schema(
         tags=["Tasks"],
         summary="Delete a task",
-        description="Delete a task owned by the authenticated user.",
+        description=(
+            "Requires a valid Bearer access token. Deletes a task only when it belongs to "
+            "the authenticated user."
+        ),
         responses={
             204: OpenApiResponse(description="Task deleted successfully"),
             401: OpenApiResponse(description="Authentication credentials were not provided or are invalid"),
-            403: OpenApiResponse(description="Task belongs to another user"),
-            404: OpenApiResponse(description="Task was not found"),
+            404: OpenApiResponse(description="Task was not found or does not belong to the authenticated user"),
         },
     ),
 )
