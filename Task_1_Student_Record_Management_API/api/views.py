@@ -1,4 +1,4 @@
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, filters, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
@@ -8,12 +8,20 @@ from .serializers import StudentSerializer
 
 
 class HomeAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         data = {
             "message": "Welcome to Student Record Management API",
             "endpoints": {
                 "students": "/api/students/",
+                "auth": {
+                    "register": "/api/auth/register/",
+                    "login": "/api/auth/login/",
+                    "logout": "/api/auth/logout/",
+                    "profile": "/api/auth/profile/",
+                    "change_password": "/api/auth/change-password/",
+                },
                 "admin": "/admin/",
             }
         }
@@ -23,6 +31,7 @@ class HomeAPIView(APIView):
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'enrollment_date']
     search_fields = ['student_id', 'first_name', 'last_name', 'email']
